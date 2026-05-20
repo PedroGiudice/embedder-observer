@@ -1,10 +1,23 @@
-import { createSignal, For, Show, createMemo } from 'solid-js'
+import { createSignal, createEffect, For, Show, createMemo } from 'solid-js'
 import type { DaemonConfig } from '../config/daemons'
 import { useSSE } from '../hooks/useSSE'
 import { useStats } from '../hooks/useStats'
 import { SourceCard } from './SourceCard'
 import { MetricTicker } from './MetricTicker'
+import { Sparkline } from './Sparkline'
 import './DaemonColumn.css'
+
+// Buffer de 60 pontos: a 1 ponto a cada 2s = 2 min de janela visual.
+// Suficiente pra ver o BFCArena crescer dos ~667 MB (cold) ate ~4040 MB
+// (steady) em ~140s, sem ter que persistir nada em disco.
+const RSS_BUFFER_MAX = 60
+
+// Cor por tint do daemon — combina com as outras affordances visuais
+// (left-border do source card, pulse dot).
+const TINT_COLOR: Record<'blue' | 'purple', string> = {
+  blue:   'var(--blue-ring)',
+  purple: 'var(--purple-ring)',
+}
 
 interface Props {
   daemon: DaemonConfig
@@ -31,6 +44,20 @@ export function DaemonColumn(props: Props) {
   const nowVal = createMemo(() => stats()?.throughput_now ?? null)
   const avgVal = createMemo(() => stats()?.throughput_avg ?? null)
 
+  // Buffer de RSS ao longo do tempo, alimentado por cada snapshot de stats.
+  // Mantém os últimos N pontos (drop por slice no head).
+  const [rssBuffer, setRssBuffer] = createSignal<number[]>([])
+  createEffect(() => {
+    const rss = stats()?.rss_mb
+    if (rss == null) return
+    setRssBuffer((prev) => {
+      const next = prev.concat(rss)
+      return next.length > RSS_BUFFER_MAX
+        ? next.slice(next.length - RSS_BUFFER_MAX)
+        : next
+    })
+  })
+
   return (
     <section class={`daemon-col`} classList={{ 'daemon-col--collapsed': collapsed() }}>
       {/* Header */}
@@ -43,18 +70,28 @@ export function DaemonColumn(props: Props) {
           </div>
           <Show when={stats()}>
             {(s) => (
-              <div class="daemon-meta">
-                <span>{s().model}</span>
-                <span>
-                  dim <b>{s().dim}</b>
-                </span>
-                <span>
-                  <b>{s().rss_mb} MB</b> RSS
-                </span>
-                <span>
-                  <b>{fmtUptime(s().uptime_secs)}</b> uptime
-                </span>
-              </div>
+              <>
+                <div class="daemon-meta">
+                  <span>{s().model}</span>
+                  <span>
+                    dim <b>{s().dim}</b>
+                  </span>
+                  <span>
+                    <b>{s().rss_mb} MB</b> RSS
+                  </span>
+                  <span>
+                    <b>{fmtUptime(s().uptime_secs)}</b> uptime
+                  </span>
+                </div>
+                <Show when={rssBuffer().length >= 2}>
+                  <div class="daemon-sparkline">
+                    <Sparkline
+                      points={rssBuffer()}
+                      color={TINT_COLOR[props.daemon.tint]}
+                    />
+                  </div>
+                </Show>
+              </>
             )}
           </Show>
           <Show when={!stats() && sse.error}>

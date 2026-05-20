@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Benchmark artifacts (CSVs, .libragen blobs, build logs) — runs sao locais
+benchmarks/

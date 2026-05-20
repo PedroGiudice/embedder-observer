@@ -15,7 +15,7 @@ export interface DaemonStats {
   rss_mb: number
 }
 
-export function useStats(baseUrl: string, intervalMs = 1000) {
+export function useStats(baseUrl: string, intervalMs = 2000) {
   const [stats, setStats] = createSignal<DaemonStats | null>(null)
   const [error, setError] = createSignal<string | null>(null)
 
