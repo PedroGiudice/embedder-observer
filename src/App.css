@@ -1,0 +1,81 @@
+/* App shell */
+.app {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+  transition: background var(--dur-med) var(--ease-out);
+}
+
+/* Header */
+.app-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 28px 40px 20px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--bg-paper);
+  flex-shrink: 0;
+  transition: background var(--dur-med) var(--ease-out), border-color var(--dur-med) var(--ease-out);
+}
+.app-head-left  { min-width: 0; }
+.app-head-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+
+.app-title {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 400; letter-spacing: 0.01em;
+  color: var(--fg-1); margin: 0;
+}
+.app-hint { font-size: 13px; color: var(--fg-5); margin: 4px 0 0; }
+
+/* Daemon chips */
+.daemon-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.header-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 4px 10px 4px 8px;
+  background: var(--bg-paper); border: 1px solid var(--line-2);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-3);
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+.header-chip:hover { border-color: var(--fg-8); }
+.chip-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--fg-6);
+}
+.chip-dot.up { background: var(--green-ring); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+[data-theme="dark"] .chip-dot.up { box-shadow: 0 0 0 3px rgba(127,182,165,0.18); }
+.chip-name { color: var(--fg-1); letter-spacing: -0.01em; font-weight: 500; }
+
+/* Theme toggle */
+.theme-toggle {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md); color: var(--fg-5);
+  background: var(--bg-paper); border: 1px solid var(--line-2);
+  transition: color var(--dur-base) var(--ease-out),
+              background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+.theme-toggle:hover { color: var(--fg-1); background: var(--bg-soft); border-color: var(--fg-8); }
+
+/* Main grid */
+.app-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 28px 40px 28px;
+  max-width: 1680px;
+  margin: 0 auto;
+  width: 100%;
+  align-items: stretch;
+  overflow: hidden;
+}
+@media (max-width: 1100px) {
+  .app-main { grid-template-columns: 1fr; padding: 24px; gap: 18px; }
+}

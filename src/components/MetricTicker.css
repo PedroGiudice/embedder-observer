@@ -1,0 +1,23 @@
+.metric {
+  padding: 18px 20px;
+  border-right: 1px solid var(--line-2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.metric:last-child { border-right: 0; }
+
+.metric-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--fg-5);
+}
+.metric-value {
+  font-family: var(--font-mono); font-size: 30px; font-weight: 600;
+  letter-spacing: -0.02em; color: var(--fg-1); line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.metric-value.ticked {
+  animation: metricTick 0.28s var(--ease-out);
+}
+.metric-unit {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--fg-6); font-variant-numeric: tabular-nums;
+}
