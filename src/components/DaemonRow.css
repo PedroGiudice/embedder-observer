@@ -71,6 +71,12 @@
 .daemon-meta .meta-unit { color: var(--fg-6); margin-left: 3px; font-weight: 500; }
 .daemon-meta--error { color: var(--rose-fg); }
 
+/* Collapsed state — oculta stream-pane, mantém stat-strip visível */
+.daemon-row--collapsed .stream-pane { display: none; }
+.daemon-row--collapsed .daemon-body { grid-template-columns: 1fr; }
+.daemon-row--collapsed .stat-strip  { border-right: 0; }
+.daemon-row--collapsed .stream-toggle-chev { transform: rotate(0deg); }
+
 /* Stream toggle — small chip-style button */
 .stream-toggle {
   display: inline-flex; align-items: center; gap: 8px;

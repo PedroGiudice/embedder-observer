@@ -63,6 +63,8 @@ function pushCapped(prev: number[], v: number): number[] {
 }
 
 export function DaemonRow(props: Props) {
+  const [collapsed, setCollapsed] = createSignal(false)
+
   const sse = useSSE(props.daemon.url)
   const { stats } = useStats(props.daemon.url)
   const live = useLiveMetrics(() => sse.liveBuffer, stats)
@@ -86,7 +88,11 @@ export function DaemonRow(props: Props) {
   const tintColor = () => TINT_COLOR[props.daemon.tint]
 
   return (
-    <section class="daemon-row" data-screen-label={props.daemon.label}>
+    <section
+      class="daemon-row"
+      classList={{ 'daemon-row--collapsed': collapsed() }}
+      data-screen-label={props.daemon.label}
+    >
 
       {/* ─── Header strip ─────────────────────────────── */}
       <header class="daemon-head">
@@ -110,7 +116,13 @@ export function DaemonRow(props: Props) {
           </Show>
         </div>
 
-        <button class="stream-toggle" type="button" aria-label="Stream">
+        <button
+          class="stream-toggle"
+          type="button"
+          onClick={() => setCollapsed(!collapsed())}
+          aria-expanded={!collapsed()}
+          aria-label={collapsed() ? 'Expand stream' : 'Collapse stream'}
+        >
           <span class="stream-toggle-label">Stream</span>
           <span class="stream-toggle-chev">
             <iconify-icon icon="lucide:chevron-right" width="12" height="12" />
