@@ -7,10 +7,9 @@ import { MetricTicker } from './MetricTicker'
 import { Sparkline } from './Sparkline'
 import './DaemonColumn.css'
 
-// Buffer de 60 pontos: a 1 ponto a cada 2s = 2 min de janela visual.
-// Suficiente pra ver o BFCArena crescer dos ~667 MB (cold) ate ~4040 MB
-// (steady) em ~140s, sem ter que persistir nada em disco.
-const RSS_BUFFER_MAX = 60
+// Buffer de 150 pontos: a 1 ponto a cada 2s = 5 min de janela visual.
+// Cobre warmup completo do BFCArena (~140s) com folga + ~3min de steady state.
+const STATS_BUFFER_MAX = 150
 
 // Cor por tint do daemon — combina com as outras affordances visuais
 // (left-border do source card, pulse dot).
@@ -33,6 +32,12 @@ function fmtUptime(s: number): string {
   return `${h}h ${m}m`
 }
 
+// Helper: append a um buffer com cap em STATS_BUFFER_MAX
+function pushCapped(prev: number[], v: number): number[] {
+  const next = prev.concat(v)
+  return next.length > STATS_BUFFER_MAX ? next.slice(next.length - STATS_BUFFER_MAX) : next
+}
+
 export function DaemonColumn(props: Props) {
   const [collapsed, setCollapsed] = createSignal(false)
   const sse  = useSSE(props.daemon.url)
@@ -44,19 +49,22 @@ export function DaemonColumn(props: Props) {
   const nowVal = createMemo(() => stats()?.throughput_now ?? null)
   const avgVal = createMemo(() => stats()?.throughput_avg ?? null)
 
-  // Buffer de RSS ao longo do tempo, alimentado por cada snapshot de stats.
+  // 3 buffers paralelos alimentados pelo mesmo tick do poll de stats.
   // Mantém os últimos N pontos (drop por slice no head).
-  const [rssBuffer, setRssBuffer] = createSignal<number[]>([])
+  const [throughputBuf, setThroughputBuf] = createSignal<number[]>([])
+  const [latencyBuf,    setLatencyBuf]    = createSignal<number[]>([])
+  const [rssBuf,        setRssBuf]        = createSignal<number[]>([])
+
   createEffect(() => {
-    const rss = stats()?.rss_mb
-    if (rss == null) return
-    setRssBuffer((prev) => {
-      const next = prev.concat(rss)
-      return next.length > RSS_BUFFER_MAX
-        ? next.slice(next.length - RSS_BUFFER_MAX)
-        : next
-    })
+    const s = stats()
+    if (s == null) return
+    setThroughputBuf((prev) => pushCapped(prev, s.throughput_now))
+    setLatencyBuf((prev)    => pushCapped(prev, s.latency_p95_ms))
+    setRssBuf((prev)        => pushCapped(prev, s.rss_mb))
   })
+
+  const tintColor = () => TINT_COLOR[props.daemon.tint]
+  const hasData = () => rssBuf().length >= 2
 
   return (
     <section class={`daemon-col`} classList={{ 'daemon-col--collapsed': collapsed() }}>
@@ -70,28 +78,18 @@ export function DaemonColumn(props: Props) {
           </div>
           <Show when={stats()}>
             {(s) => (
-              <>
-                <div class="daemon-meta">
-                  <span>{s().model}</span>
-                  <span>
-                    dim <b>{s().dim}</b>
-                  </span>
-                  <span>
-                    <b>{s().rss_mb} MB</b> RSS
-                  </span>
-                  <span>
-                    <b>{fmtUptime(s().uptime_secs)}</b> uptime
-                  </span>
-                </div>
-                <Show when={rssBuffer().length >= 2}>
-                  <div class="daemon-sparkline">
-                    <Sparkline
-                      points={rssBuffer()}
-                      color={TINT_COLOR[props.daemon.tint]}
-                    />
-                  </div>
-                </Show>
-              </>
+              <div class="daemon-meta">
+                <span>{s().model}</span>
+                <span>
+                  dim <b>{s().dim}</b>
+                </span>
+                <span>
+                  <b>{s().rss_mb} MB</b> RSS
+                </span>
+                <span>
+                  <b>{fmtUptime(s().uptime_secs)}</b> uptime
+                </span>
+              </div>
             )}
           </Show>
           <Show when={!stats() && sse.error}>
@@ -118,6 +116,35 @@ export function DaemonColumn(props: Props) {
         <MetricTicker label="Now" value={nowVal()} />
         <MetricTicker label="Avg" value={avgVal()} />
       </div>
+
+      {/* Charts strip — 3 chart cells em flex row.
+          Buffer de 5min (150 pontos a 2s/tick) cobre warmup do BFCArena + steady. */}
+      <Show when={hasData()}>
+        <div class="daemon-charts">
+          <ChartCell
+            label="Throughput"
+            value={stats()?.throughput_now?.toFixed(1) ?? '—'}
+            unit="ch/s"
+            points={throughputBuf()}
+            color={tintColor()}
+          />
+          <ChartCell
+            label="Lat p95"
+            value={String(stats()?.latency_p95_ms ?? '—')}
+            unit="ms"
+            points={latencyBuf()}
+            color={tintColor()}
+          />
+          <ChartCell
+            label="RSS"
+            value={String(stats()?.rss_mb ?? '—')}
+            unit="MB"
+            points={rssBuf()}
+            color={tintColor()}
+            kind="area"
+          />
+        </div>
+      </Show>
 
       {/* Collapsed hint */}
       <div
@@ -168,5 +195,36 @@ export function DaemonColumn(props: Props) {
         </div>
       </div>
     </section>
+  )
+}
+
+// ChartCell: célula compacta com header (label + value + unit) e Sparkline.
+// Componente local — só pra reduzir verbosidade no JSX do strip.
+function ChartCell(p: {
+  label: string
+  value: string
+  unit: string
+  points: number[]
+  color: string
+  kind?: 'line' | 'area'
+}) {
+  return (
+    <div class="chart-cell">
+      <div class="chart-cell-head">
+        <span class="chart-cell-label">{p.label}</span>
+        <span class="chart-cell-value">
+          {p.value}
+          <span class="chart-cell-unit">{p.unit}</span>
+        </span>
+      </div>
+      <Sparkline
+        points={p.points}
+        color={p.color}
+        kind={p.kind}
+        showAxes
+        width={240}
+        height={48}
+      />
+    </div>
   )
 }
