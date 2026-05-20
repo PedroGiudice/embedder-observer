@@ -2,7 +2,7 @@
 
 Real-time observability UI para daemons locais de embedding. Conecta via SSE
 ao [embedder-d](https://github.com/PedroGiudice/embedder-d) (Qwen3) e
-cogmem (BGE-M3, Fase 2 backend), exibe stream de eventos por source em
+cogmem (BGE-M3 in-process via `ort`), exibe stream de eventos por source em
 cartões fixed-height, métricas de throughput ao vivo e estado dos daemons.
 
 ## Stack
@@ -26,7 +26,7 @@ npm run dev          # vite serve em http://localhost:5174 (host 0.0.0.0)
 
 O dev server proxia automaticamente:
 - `/proxy/embedder-d/*` → `http://localhost:8081/*`
-- `/proxy/cogmem/*` → `http://localhost:3939/*` (Fase 2)
+- `/proxy/cogmem/*` → `http://localhost:3939/*`
 
 Acessar localmente via `http://localhost:5174` ou da tailnet via
 `http://100.123.73.128:5174`.
@@ -134,8 +134,19 @@ Quando um evento chega via SSE:
 - `GET /api/events` → SSE stream de `{ts_ms, daemon_id, source, tokens,
   latency_ms, chunk_preview}`
 
-**cogmem** (`http://localhost:3939`): pendente Fase 2. UI gracefully degrada
-com "Reconnecting in Ns…" no header e empty state no body.
+**cogmem** (`http://localhost:3939`): mesmos endpoints com sources contextuais
+por tipo de operação:
+
+| Source | Origem |
+|--------|--------|
+| `cogmem/context` | attention + auto search |
+| `cogmem/search` | search via socket ou HTTP |
+| `cogmem/insert` | memórias manuais |
+| `cogmem/capture/<repo>` | turns de sessão capturados |
+| `cogmem/code-search` | busca em code index |
+
+Se o daemon estiver offline, a UI gracefully degrada com "Reconnecting in Ns…"
+no header e empty state no body.
 
 ## Latency thresholds
 
@@ -168,3 +179,13 @@ npm run build        # build de produção em dist/
 npm run preview      # preview do build (substitui dev em prod)
 npx tsc --noEmit     # type check sem emit
 ```
+
+## Documentação
+
+- [`docs/contexto/20052026-embedder-observer-deploy.md`](docs/contexto/20052026-embedder-observer-deploy.md)
+  — registro denso do deploy inicial: backend SSE em embedder-d e cogmem,
+  patch LibraGen `source`, recovery de refactor dangling, frontend SolidJS,
+  decisões arquiteturais, pendências.
+- [`docs/prompts/20052026-benchmark-qwen3-libragen.md`](docs/prompts/20052026-benchmark-qwen3-libragen.md)
+  — prompt de retomada para próxima sessão: usar este dashboard como instrumento
+  pra benchmark do Qwen3-Embedding-0.6B INT8 sob load real do LibraGen.
