@@ -16,6 +16,17 @@
 }
 .daemon-row:hover { border-color: var(--fg-8); }
 
+/* ─── Drag-and-drop states ───────────────────────────────── */
+.daemon-row--dragging {
+  opacity: 0.5;
+  outline: 2px solid var(--blue-ring);
+  outline-offset: -2px;
+}
+
+.daemon-row--drop-target {
+  border-top: 2px solid var(--blue-ring);
+}
+
 /* ─── Compact single-line header ────────────────────────── */
 .daemon-head {
   padding: 11px 20px;
@@ -24,6 +35,55 @@
   align-items: center;
   gap: 16px;
   flex-shrink: 0;
+}
+
+/* ─── Drag handle ────────────────────────────────────────── */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  color: var(--fg-7);
+  flex-shrink: 0;
+  cursor: grab;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  transition: color var(--dur-base) var(--ease-out);
+  user-select: none;
+}
+.drag-handle:hover { color: var(--fg-4); }
+.daemon-row--dragging .drag-handle { cursor: grabbing; }
+
+/* ─── Keyboard reorder controls ─────────────────────────── */
+.reorder-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.reorder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--fg-7);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-base) var(--ease-out),
+              background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+.reorder-btn:hover:not(:disabled) {
+  color: var(--fg-2);
+  background: var(--bg-soft);
+  border-color: var(--line-2);
+}
+.reorder-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
 }
 
 .daemon-name-row {

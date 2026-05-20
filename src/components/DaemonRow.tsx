@@ -36,6 +36,17 @@ const TINT_COLOR: Record<'blue' | 'purple', string> = {
 
 interface Props {
   daemon: DaemonConfig
+  // Drag-and-drop / reorder
+  isDragging?: boolean
+  isDropTarget?: boolean
+  canMoveUp?: boolean
+  canMoveDown?: boolean
+  onDragStart?: () => void
+  onDragOver?: (e: DragEvent) => void
+  onDrop?: (e: DragEvent) => void
+  onDragEnd?: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
 function fmtUptime(s: number): string {
@@ -90,12 +101,39 @@ export function DaemonRow(props: Props) {
   return (
     <section
       class="daemon-row"
-      classList={{ 'daemon-row--collapsed': collapsed() }}
+      classList={{
+        'daemon-row--collapsed':   collapsed(),
+        'daemon-row--dragging':    !!props.isDragging,
+        'daemon-row--drop-target': !!props.isDropTarget,
+      }}
       data-screen-label={props.daemon.label}
+      draggable={true}
+      onDragStart={(e) => {
+        e.dataTransfer?.setData('text/plain', props.daemon.id)
+        props.onDragStart?.()
+      }}
+      onDragOver={(e) => {
+        e.preventDefault()
+        props.onDragOver?.(e)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        props.onDrop?.(e)
+      }}
+      onDragEnd={props.onDragEnd}
     >
 
       {/* ─── Header strip ─────────────────────────────── */}
       <header class="daemon-head">
+        {/* Drag handle — purely visual, drag is on the whole section */}
+        <div
+          class="drag-handle"
+          aria-hidden="true"
+          title="Drag to reorder"
+        >
+          <iconify-icon icon="lucide:grip-vertical" width="14" height="14" />
+        </div>
+
         <div class="daemon-name-row">
           <iconify-icon icon="lucide:activity" width="14" height="14" class="icon-activity" />
           <span class="daemon-name">{props.daemon.label}</span>
@@ -114,6 +152,30 @@ export function DaemonRow(props: Props) {
           <Show when={!stats() && sse.error}>
             <span class="daemon-meta daemon-meta--error">{sse.error}</span>
           </Show>
+        </div>
+
+        {/* Keyboard reorder controls */}
+        <div class="reorder-controls" role="group" aria-label={`Reorder ${props.daemon.label}`}>
+          <button
+            class="reorder-btn"
+            type="button"
+            onClick={props.onMoveUp}
+            disabled={!props.canMoveUp}
+            aria-label={`Move ${props.daemon.label} up`}
+            title="Move up"
+          >
+            <iconify-icon icon="lucide:chevron-up" width="12" height="12" />
+          </button>
+          <button
+            class="reorder-btn"
+            type="button"
+            onClick={props.onMoveDown}
+            disabled={!props.canMoveDown}
+            aria-label={`Move ${props.daemon.label} down`}
+            title="Move down"
+          >
+            <iconify-icon icon="lucide:chevron-down" width="12" height="12" />
+          </button>
         </div>
 
         <button
