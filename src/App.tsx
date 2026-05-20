@@ -1,6 +1,6 @@
 import { createSignal, For, onMount } from 'solid-js'
 import { DAEMONS } from './config/daemons'
-import { DaemonColumn } from './components/DaemonColumn'
+import { DaemonRow } from './components/DaemonRow'
 import './styles/tokens.css'
 import './styles/base.css'
 import './App.css'
@@ -31,6 +31,11 @@ export function App() {
     <div class="app">
       <header class="app-head">
         <div class="app-head-left">
+          <div class="app-eyebrow">
+            <span>Observability</span>
+            <span class="em-dash">—</span>
+            <span class="mono-mini">{DAEMONS.length} daemons · sse</span>
+          </div>
           <h1 class="app-title">Embedder Observer</h1>
           <p class="app-hint">Real-time observability for local embedding daemons</p>
         </div>
@@ -62,7 +67,7 @@ export function App() {
 
       <main class="app-main">
         <For each={DAEMONS}>
-          {(d) => <DaemonColumn daemon={d} />}
+          {(d) => <DaemonRow daemon={d} />}
         </For>
       </main>
     </div>

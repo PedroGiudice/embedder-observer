@@ -18,11 +18,11 @@ function truncateSource(s: string, maxLen = 46): string {
 
 export function SourceCard(props: Props) {
   const [collapsed, setCollapsed] = createSignal(false)
-  const [pulsing, setPulsing] = createSignal(false)
+  const [pulsing, setPulsing]     = createSignal(false)
 
-  // Dispara pulse quando novo evento chega
+  // pulse the dot when a new event arrives for this source
   createEffect(() => {
-    void props.state.lastEventTs  // rastrear
+    void props.state.lastEventTs
     if (props.state.eventCount === 0) return
     setPulsing(false)
     requestAnimationFrame(() => setPulsing(true))
@@ -43,7 +43,6 @@ export function SourceCard(props: Props) {
           <iconify-icon icon="lucide:chevron-right" width="10" height="10" />
         </span>
       </div>
-
       <div class="src-stream-wrap">
         <div class="src-stream">
           <For each={props.state.events}>

@@ -1,5 +1,5 @@
 /* ============================================================
-   Base — reset, layout shell, typography, animations
+   Base — reset, typography, scrollbars, animations
    ============================================================ */
 * { box-sizing: border-box; }
 
@@ -14,6 +14,7 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
+  letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;

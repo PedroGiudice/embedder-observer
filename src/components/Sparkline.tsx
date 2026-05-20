@@ -4,27 +4,26 @@ interface Props {
   points: number[]
   width?: number
   height?: number
-  color?: string         // CSS color (ex: 'var(--blue-ring)')
+  color?: string         // CSS color (e.g. 'var(--blue-ring)')
   strokeWidth?: number
-  /** 'line' (default) ou 'area' — preenche embaixo da linha */
   kind?: 'line' | 'area'
-  /** Adiciona linha hairline no topo e base do chart (eixos básicos) */
   showAxes?: boolean
 }
 
 /**
- * Sparkline minimalista: SVG inline com `<path>`, sem grid, sem labels.
+ * Minimal SVG sparkline.
  *
- * - Auto-scale min→max do buffer (linha plana centrada se max===min).
- * - Renderiza null quando points.length < 2 — evita stroke degenerada.
- * - viewBox = `0 0 width height`; svg escala via CSS (vector-effect mantém stroke).
+ * - Auto-scales to min/max of the buffer (flat line centered if min===max).
+ * - Renders nothing when points.length < 2 (avoids degenerate stroke).
+ * - viewBox = `0 0 width height`; svg scales via CSS, vector-effect keeps
+ *   stroke width constant under non-uniform scaling.
  *
- * Editorial Paper: stroke da cor do daemon, sem grid pra não competir
- * com o resto da hierarquia visual.
+ * Editorial Paper note: stroke uses the daemon's tint color, no grid,
+ * no labels — the value is in the StatRow head, the line is just texture.
  */
 export function Sparkline(props: Props) {
-  const w  = () => props.width  ?? 240
-  const h  = () => props.height ?? 56
+  const w  = () => props.width  ?? 120
+  const h  = () => props.height ?? 28
   const sw = () => props.strokeWidth ?? 1.5
   const kind = () => props.kind ?? 'line'
 
@@ -34,7 +33,6 @@ export function Sparkline(props: Props) {
 
     const innerH  = h() - sw()
     const yOffset = sw() / 2
-
     const min = Math.min(...pts)
     const max = Math.max(...pts)
     const range = max - min || 1
@@ -51,7 +49,6 @@ export function Sparkline(props: Props) {
       .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
       .join(' ')
 
-    // Area: linha + fecha pra bottom + back to start
     const areaPath =
       linePath +
       ` L ${coords[coords.length - 1].x.toFixed(1)} ${h()}` +
