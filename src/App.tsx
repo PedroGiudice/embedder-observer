@@ -6,6 +6,7 @@ import './styles/base.css'
 import './App.css'
 
 const ORDER_KEY = 'embedder-observer.daemon-order'
+const HEIGHTS_KEY = 'embedder-observer.daemon-heights'
 
 function getInitialTheme(): 'light' | 'dark' {
   try {
@@ -40,9 +41,35 @@ function getInitialOrder(): string[] {
   return DAEMONS.map((d) => d.id)
 }
 
+/**
+ * Reads saved row heights from localStorage and reconciles with current DAEMONS.
+ * - Ids not present in DAEMONS are dropped (daemon removed from config).
+ * - Values outside reasonable bounds are dropped (corrupted data).
+ */
+function getInitialHeights(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(HEIGHTS_KEY)
+    if (raw) {
+      const saved: unknown = JSON.parse(raw)
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+        const known = new Set(DAEMONS.map((d) => d.id))
+        const out: Record<string, number> = {}
+        for (const [id, h] of Object.entries(saved as Record<string, unknown>)) {
+          if (known.has(id) && typeof h === 'number' && h >= 100 && h <= 5000) {
+            out[id] = h
+          }
+        }
+        return out
+      }
+    }
+  } catch { /* ignore */ }
+  return {}
+}
+
 export function App() {
   const [theme, setTheme] = createSignal<'light' | 'dark'>(getInitialTheme())
   const [order, setOrder] = createSignal<string[]>(getInitialOrder())
+  const [heights, setHeights] = createSignal<Record<string, number>>(getInitialHeights())
   const [draggingId, setDraggingId] = createSignal<string | null>(null)
   const [dropTargetId, setDropTargetId] = createSignal<string | null>(null)
 
@@ -50,6 +77,15 @@ export function App() {
   createEffect(() => {
     try { localStorage.setItem(ORDER_KEY, JSON.stringify(order())) } catch { /* ignore */ }
   })
+
+  // Persist heights whenever they change.
+  createEffect(() => {
+    try { localStorage.setItem(HEIGHTS_KEY, JSON.stringify(heights())) } catch { /* ignore */ }
+  })
+
+  function handleResize(id: string, height: number) {
+    setHeights((prev) => ({ ...prev, [id]: height }))
+  }
 
   onMount(() => {
     document.body.dataset.theme = theme()
@@ -168,6 +204,8 @@ export function App() {
               isDropTarget={dropTargetId() === d.id}
               canMoveUp={idx() > 0}
               canMoveDown={idx() < orderedDaemons().length - 1}
+              initialHeight={heights()[d.id]}
+              onResize={handleResize}
               onDragStart={() => handleDragStart(d.id)}
               onDragOver={() => handleDragOver(d.id)}
               onDrop={() => handleDrop(d.id)}

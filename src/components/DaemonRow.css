@@ -2,6 +2,7 @@
    DaemonRow — one daemon as a full-width horizontal strip card
    ============================================================ */
 .daemon-row {
+  position: relative;
   background: var(--bg-paper);
   border: 1px solid var(--line-2);
   border-radius: var(--radius-xl);
@@ -9,7 +10,9 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0;
+  /* Fallback height when no explicit height is set (first load, before any drag).
+     Inline `height` from the component overrides this when present. */
+  min-height: clamp(420px, 40vh, 640px);
   transition: border-color var(--dur-base) var(--ease-out),
               box-shadow var(--dur-base) var(--ease-out),
               background var(--dur-med) var(--ease-out);
@@ -25,6 +28,14 @@
 
 .daemon-row--drop-target {
   border-top: 2px solid var(--blue-ring);
+}
+
+/* ─── Resize state — outline pulse while user is dragging the handle ─ */
+.daemon-row--resizing {
+  outline: 1px solid var(--blue-ring);
+  outline-offset: -1px;
+  /* Disable transitions during resize so height tracks the cursor 1:1. */
+  transition: none;
 }
 
 /* ─── Compact single-line header ────────────────────────── */
@@ -136,6 +147,11 @@
 .daemon-row--collapsed .daemon-body { grid-template-columns: 1fr; }
 .daemon-row--collapsed .stat-strip  { border-right: 0; }
 .daemon-row--collapsed .stream-toggle-chev { transform: rotate(0deg); }
+/* When collapsed, height is content-driven — drop the expanded fallback. */
+.daemon-row--collapsed { min-height: 0; }
+/* Resize handle has no meaning when stream is hidden. The component already
+   conditionally renders it; this is a defense-in-depth rule. */
+.daemon-row--collapsed .resize-handle { display: none; }
 
 /* Stream toggle — small chip-style button */
 .stream-toggle {
@@ -237,3 +253,27 @@
 .stream-empty-icon { color: var(--fg-7); margin-bottom: 6px; }
 .stream-empty-title { font: var(--text-card-title); color: var(--fg-2); letter-spacing: -0.01em; }
 .stream-empty-hint  { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-5); letter-spacing: 0; }
+
+/* ─── Resize handle ──────────────────────────────────────────
+   Thin invisible strip on the section's bottom edge. Hover and
+   active states surface a subtle indicator. Drag uses Pointer
+   Events with setPointerCapture in DaemonRow.tsx. */
+.resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+  z-index: 2;
+  touch-action: none;
+  transition: background var(--dur-base) var(--ease-out);
+}
+.resize-handle:hover {
+  background: var(--line-2);
+}
+.daemon-row--resizing .resize-handle {
+  background: var(--blue-ring);
+  opacity: 0.4;
+}

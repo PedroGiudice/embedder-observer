@@ -34,6 +34,10 @@ const TINT_COLOR: Record<'blue' | 'purple', string> = {
   purple: 'var(--purple-ring)',
 }
 
+// Resize bounds (px). MIN keeps header + 3 stat rows visible; MAX caps at ~80vh.
+const MIN_HEIGHT = 280
+const MAX_HEIGHT_VH = 0.8
+
 interface Props {
   daemon: DaemonConfig
   // Drag-and-drop / reorder
@@ -41,6 +45,9 @@ interface Props {
   isDropTarget?: boolean
   canMoveUp?: boolean
   canMoveDown?: boolean
+  // Vertical resize
+  initialHeight?: number
+  onResize?: (id: string, height: number) => void
   onDragStart?: () => void
   onDragOver?: (e: DragEvent) => void
   onDrop?: (e: DragEvent) => void
@@ -76,6 +83,12 @@ function pushCapped(prev: number[], v: number): number[] {
 export function DaemonRow(props: Props) {
   const [collapsed, setCollapsed] = createSignal(false)
 
+  // Resize state. `height()` returning null means "no custom height saved" —
+  // CSS fallback (min-height clamp) takes over.
+  const [height, setHeight] = createSignal<number | null>(props.initialHeight ?? null)
+  const [resizing, setResizing] = createSignal(false)
+  let resizeAnchor: { startY: number; startHeight: number } | null = null
+
   const sse = useSSE(props.daemon.url)
   const { stats } = useStats(props.daemon.url)
   const live = useLiveMetrics(() => sse.liveBuffer, stats)
@@ -98,6 +111,56 @@ export function DaemonRow(props: Props) {
 
   const tintColor = () => TINT_COLOR[props.daemon.tint]
 
+  // ─── Resize handlers ───────────────────────────────────────
+  // Uses Pointer Events + setPointerCapture so we don't need global listeners;
+  // pointermove fires on the handle even if the cursor leaves the element.
+
+  function maxHeight(): number {
+    return Math.floor(window.innerHeight * MAX_HEIGHT_VH)
+  }
+
+  function onResizePointerDown(e: PointerEvent) {
+    // Avoid triggering the section's HTML5 drag (drag-to-reorder).
+    e.stopPropagation()
+    e.preventDefault()
+
+    const target = e.currentTarget as HTMLElement
+    // setPointerCapture throws NotFoundError on synthetic events (no active pointer);
+    // benign in production where real input always has an active pointer.
+    try { target.setPointerCapture(e.pointerId) } catch { /* ignore */ }
+
+    // Resolve current rendered height as starting point (handles "no saved height" path).
+    const row = target.parentElement as HTMLElement | null
+    const startHeight = height() ?? (row?.getBoundingClientRect().height ?? MIN_HEIGHT)
+
+    resizeAnchor = { startY: e.clientY, startHeight }
+    setResizing(true)
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  function onResizePointerMove(e: PointerEvent) {
+    if (!resizeAnchor) return
+    e.preventDefault()
+    const dy = e.clientY - resizeAnchor.startY
+    const next = resizeAnchor.startHeight + dy
+    const clamped = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next))
+    setHeight(clamped)
+  }
+
+  function endResize(e: PointerEvent) {
+    if (!resizeAnchor) return
+    const target = e.currentTarget as HTMLElement
+    try { target.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
+    resizeAnchor = null
+    setResizing(false)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+
+    const h = height()
+    if (h != null) props.onResize?.(props.daemon.id, h)
+  }
+
   return (
     <section
       class="daemon-row"
@@ -105,6 +168,12 @@ export function DaemonRow(props: Props) {
         'daemon-row--collapsed':   collapsed(),
         'daemon-row--dragging':    !!props.isDragging,
         'daemon-row--drop-target': !!props.isDropTarget,
+        'daemon-row--resizing':    resizing(),
+      }}
+      style={{
+        // Only apply explicit height when expanded and a height was set.
+        // When collapsed, CSS lets content drive the natural height.
+        height: !collapsed() && height() != null ? `${height()}px` : undefined,
       }}
       data-screen-label={props.daemon.label}
       draggable={true}
@@ -290,6 +359,21 @@ export function DaemonRow(props: Props) {
         </div>
 
       </div>
+
+      {/* ─── Resize handle — only visible when stream is expanded ─── */}
+      <Show when={!collapsed()}>
+        <div
+          class="resize-handle"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={`Resize ${props.daemon.label}`}
+          title="Drag to resize"
+          on:pointerdown={onResizePointerDown}
+          on:pointermove={onResizePointerMove}
+          on:pointerup={endResize}
+          on:pointercancel={endResize}
+        />
+      </Show>
     </section>
   )
 }
